@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { VenueDetails } from '@/components/VenueDetails'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/components/AuthProvider'
+import { toast } from 'react-hot-toast'
 
 export default function JoinMeeting() {
   const params = useParams()
@@ -17,9 +18,11 @@ export default function JoinMeeting() {
   const { user } = useAuth()
   const router = useRouter()
   const [meeting, setMeeting] = useState<Meeting | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null)
   const [recommendations, setRecommendations] = useState<google.maps.places.PlaceResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isSearchingVenues, setIsSearchingVenues] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -39,6 +42,7 @@ export default function JoinMeeting() {
           .single()
 
         if (error) throw error
+        console.log('Fetched meeting:', data)
         setMeeting(data)
 
         // Subscribe to meeting updates
@@ -51,10 +55,14 @@ export default function JoinMeeting() {
             filter: `id=eq.${id}`
           }, 
           (payload) => {
+            console.log('Meeting updated:', payload)
             const newMeeting = payload.new as Meeting
             setMeeting(newMeeting)
             if (newMeeting && newMeeting.status === 'active' && newMeeting.participant_location) {
               findMidpointVenues(newMeeting)
+            }
+            if (newMeeting.status === 'completed' && newMeeting.chosen_location) {
+              toast.success('Meeting location has been chosen! You can now schedule the meeting.')
             }
           })
           .subscribe()
@@ -63,6 +71,7 @@ export default function JoinMeeting() {
           supabase.removeChannel(channel)
         }
       } catch (err) {
+        console.error('Error fetching meeting:', err)
         setError('Failed to fetch meeting')
       } finally {
         setLoading(false)
@@ -72,26 +81,51 @@ export default function JoinMeeting() {
     fetchMeeting()
   }, [id, user])
 
-  const handleLocationSelect = async (location: google.maps.places.PlaceResult) => {
-    if (!user || !id || !meeting) return
+  const handleLocationSelect = (location: google.maps.places.PlaceResult) => {
+    console.log('Location selected:', location)
+    setSelectedLocation(location)
+  }
+
+  const handleSubmitLocation = async () => {
+    if (!user || !id || !meeting || !selectedLocation) return
 
     try {
+      // Optimistically update the UI first
+      const updatedMeeting = {
+        ...meeting,
+        participant_id: user.id,
+        participant_location: {
+          lat: selectedLocation.geometry?.location?.lat() ?? 0,
+          lng: selectedLocation.geometry?.location?.lng() ?? 0,
+          address: selectedLocation.formatted_address ?? ''
+        },
+        status: 'active' as 'active'
+      }
+      setMeeting(updatedMeeting)
+      setIsSearchingVenues(true)
+
       const { error } = await supabase
         .from('WhereToMeetMeetings')
         .update({
           participant_id: user.id,
           participant_location: {
-            lat: location.geometry?.location?.lat(),
-            lng: location.geometry?.location?.lng(),
-            address: location.formatted_address
+            lat: selectedLocation.geometry?.location?.lat(),
+            lng: selectedLocation.geometry?.location?.lng(),
+            address: selectedLocation.formatted_address
           },
           status: 'active'
         })
         .eq('id', id)
 
       if (error) throw error
+
+      setSelectedLocation(null)
+      toast.success('Location submitted successfully!')
     } catch (err) {
+      setMeeting(meeting)
+      console.error('Error updating location:', err)
       setError('Failed to update location')
+      toast.error('Failed to submit location')
     }
   }
 
@@ -135,17 +169,27 @@ export default function JoinMeeting() {
 
       {meeting?.status === 'active' && meeting.participant_location && (
         <div className="mb-4 p-4 bg-blue-100 dark:bg-blue-900 rounded-md">
-          <p className="dark:text-white">Waiting for the creator to choose a location</p>
+          <p className="dark:text-white">
+            Waiting for the creator to choose a meeting location
+          </p>
         </div>
       )}
 
-      {/* Location Input */}
-      {meeting?.status !== 'completed' && !meeting?.participant_location && (
+      {/* Location Input - only show if no location submitted yet */}
+      {!meeting?.participant_location && (
         <div className="max-w-md mx-auto mb-8">
           <LocationInput
             onLocationSelect={handleLocationSelect}
             placeholder="Enter your location"
           />
+          {selectedLocation && (
+            <Button 
+              onClick={handleSubmitLocation}
+              className="w-full mt-4"
+            >
+              Confirm Location
+            </Button>
+          )}
         </div>
       )}
 

@@ -54,6 +54,9 @@ export function VenueDetails({ placeId }: VenueDetailsProps) {
               src={photo}
               alt={`${details.name} photo ${index + 1}`}
               fill
+              sizes="(max-width: 768px) 33vw,
+                     (max-width: 1200px) 25vw,
+                     20vw"
               className="object-cover rounded"
             />
           </div>

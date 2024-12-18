@@ -6,7 +6,8 @@ export async function GET(request: Request) {
   try {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
-    console.log('Auth callback received:', { code, url: request.url })
+    const redirectTo = requestUrl.searchParams.get('redirectTo')
+    console.log('Auth callback received:', { code, redirectTo, url: request.url })
 
     if (!code) {
       console.log('No code found, redirecting to home')
@@ -22,8 +23,8 @@ export async function GET(request: Request) {
     }
 
     if (data.session) {
-      console.log('Session established, redirecting to dashboard')
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      console.log('Session established, redirecting to:', redirectTo || '/dashboard')
+      return NextResponse.redirect(new URL(redirectTo || '/dashboard', request.url))
     }
 
     return NextResponse.redirect(new URL('/', request.url))
