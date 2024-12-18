@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase'
 import { Meeting } from '@/types'
 import { Map } from '@/components/Map'
 import { LocationInput } from '@/components/LocationInput'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { VenueDetails } from '@/components/VenueDetails'
 import { Button } from '@/components/Button'
 import { toast } from 'react-hot-toast'
@@ -17,7 +16,6 @@ export default function JoinMeeting() {
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null)
   const [recommendations, setRecommendations] = useState<google.maps.places.PlaceResult[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -74,8 +72,6 @@ export default function JoinMeeting() {
       } catch (err) {
         console.error('Error fetching meeting:', err)
         setError('Failed to fetch meeting. Please try again.')
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -99,7 +95,7 @@ export default function JoinMeeting() {
           lng: selectedLocation.geometry?.location?.lng() ?? 0,
           address: selectedLocation.formatted_address ?? ''
         },
-        status: 'active' as 'active'
+        status: 'active' as 'active' | 'pending' | 'completed'
       }
       setMeeting(updatedMeeting)
 
