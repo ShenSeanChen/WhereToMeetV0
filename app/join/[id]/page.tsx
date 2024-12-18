@@ -17,6 +17,7 @@ export default function JoinMeeting() {
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null)
   const [recommendations, setRecommendations] = useState<google.maps.places.PlaceResult[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [participantEmail, setParticipantEmail] = useState<string>('')
 
   useEffect(() => {
     const fetchMeeting = async () => {
@@ -84,10 +85,17 @@ export default function JoinMeeting() {
   }
 
   const handleSubmitLocation = async () => {
-    if (!id || !meeting || !selectedLocation) return
+    if (!id || !meeting || !selectedLocation || !participantEmail) {
+      toast.error('Please provide both your location and email')
+      return
+    }
+
+    if (!participantEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      toast.error('Please enter a valid email address')
+      return
+    }
 
     try {
-      // Optimistically update the UI first
       const updatedMeeting = {
         ...meeting,
         participant_location: {
@@ -95,6 +103,7 @@ export default function JoinMeeting() {
           lng: selectedLocation.geometry?.location?.lng() ?? 0,
           address: selectedLocation.formatted_address ?? ''
         },
+        participant_email: participantEmail,
         status: 'active' as 'active' | 'pending' | 'completed'
       }
       setMeeting(updatedMeeting)
@@ -107,6 +116,7 @@ export default function JoinMeeting() {
             lng: selectedLocation.geometry?.location?.lng(),
             address: selectedLocation.formatted_address
           },
+          participant_email: participantEmail,
           status: 'active'
         })
         .eq('id', id)
@@ -171,15 +181,28 @@ export default function JoinMeeting() {
 
       {/* Location Input - only show if no location submitted yet */}
       {!meeting?.participant_location && (
-        <div className="max-w-md mx-auto mb-8">
+        <div className="max-w-md mx-auto mb-8 space-y-4">
           <LocationInput
             onLocationSelect={handleLocationSelect}
             placeholder="Enter your location"
           />
-          {selectedLocation && (
+          <input
+            type="email"
+            value={participantEmail}
+            onChange={(e) => setParticipantEmail(e.target.value)}
+            placeholder="Enter your email for calendar invitation"
+            className="w-full p-2 border rounded dark:bg-gray-800 dark:text-white dark:border-gray-700"
+            required
+          />
+          {selectedLocation && !participantEmail && (
+            <p className="text-yellow-600 dark:text-yellow-400 text-sm">
+              Please enter your email to receive the calendar invitation
+            </p>
+          )}
+          {selectedLocation && participantEmail && (
             <Button 
               onClick={handleSubmitLocation}
-              className="w-full mt-4"
+              className="w-full"
             >
               Confirm Location
             </Button>

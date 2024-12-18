@@ -2,7 +2,7 @@
 
 import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api'
 import { useMemo } from 'react'
-import { Location, MapProps } from '@/types'
+import { MapProps } from '@/types'
 
 const libraries: ("places")[] = ['places']
 
