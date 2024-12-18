@@ -42,6 +42,7 @@ export interface VenueDetail {
 export interface ScheduleMeetingProps {
   venueName: string
   venueAddress: string
+  meetingId: string
   onScheduled: () => void
 }
 

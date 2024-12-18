@@ -5,7 +5,7 @@ import { Button } from './Button'
 import toast from 'react-hot-toast'
 import { ScheduleMeetingProps } from '@/types'
 
-export function ScheduleMeeting({ venueName, venueAddress, onScheduled }: ScheduleMeetingProps) {
+export function ScheduleMeeting({ venueName, venueAddress, meetingId, onScheduled }: ScheduleMeetingProps) {
   const [date, setDate] = useState<string>('')
   const [time, setTime] = useState<string>('')
   const [loading, setLoading] = useState(false)
@@ -24,6 +24,7 @@ export function ScheduleMeeting({ venueName, venueAddress, onScheduled }: Schedu
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          meetingId,
           summary: `Meeting at ${venueName}`,
           location: venueAddress,
           startTime: `${date}T${time}:00`,

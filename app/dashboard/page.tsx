@@ -432,6 +432,7 @@ export default function Dashboard() {
             <ScheduleMeeting
               venueName={meeting.chosen_location.name}
               venueAddress={meeting.chosen_location.address}
+              meetingId={meeting.id}
               onScheduled={() => setShowSchedule(false)}
             />
           )}
