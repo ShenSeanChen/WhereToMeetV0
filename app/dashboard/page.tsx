@@ -11,7 +11,7 @@ import { ScheduleMeeting } from '@/components/ScheduleMeeting'
 import { VenueDetails } from '@/components/VenueDetails'
 import { Meeting } from '@/types'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+// import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { toast } from 'react-hot-toast'
 
 export default function Dashboard() {
