@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Meeting } from '@/types'
 import { Map } from '@/components/Map'
@@ -9,41 +9,42 @@ import { LocationInput } from '@/components/LocationInput'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { VenueDetails } from '@/components/VenueDetails'
 import { Button } from '@/components/Button'
-import { useAuth } from '@/components/AuthProvider'
 import { toast } from 'react-hot-toast'
 
 export default function JoinMeeting() {
   const params = useParams()
   const id = params?.id as string
-  const { user } = useAuth()
-  const router = useRouter()
   const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<google.maps.places.PlaceResult | null>(null)
   const [recommendations, setRecommendations] = useState<google.maps.places.PlaceResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isSearchingVenues, setIsSearchingVenues] = useState(false)
-
-  useEffect(() => {
-    if (!user) {
-      router.push(`/auth?redirectTo=/join/${id}`)
-    }
-  }, [user, id, router])
 
   useEffect(() => {
     const fetchMeeting = async () => {
-      if (!id || !user) return
+      if (!id) return
 
       try {
-        const { data, error } = await supabase
+        const { data: meetings, error: queryError } = await supabase
           .from('WhereToMeetMeetings')
           .select('*')
           .eq('id', id)
-          .single()
 
-        if (error) throw error
-        console.log('Fetched meeting:', data)
-        setMeeting(data)
+        if (queryError) {
+          console.error('Query error:', queryError)
+          setError('Failed to fetch meeting')
+          return
+        }
+
+        if (!meetings || meetings.length === 0) {
+          console.error('No meeting found with ID:', id)
+          setError('Meeting not found')
+          return
+        }
+
+        const meetingData = meetings[0]
+        console.log('Fetched meeting:', meetingData)
+        setMeeting(meetingData)
 
         // Subscribe to meeting updates
         const channel = supabase
@@ -62,7 +63,7 @@ export default function JoinMeeting() {
               findMidpointVenues(newMeeting)
             }
             if (newMeeting.status === 'completed' && newMeeting.chosen_location) {
-              toast.success('Meeting location has been chosen! You can now schedule the meeting.')
+              toast.success('Meeting location has been chosen!')
             }
           })
           .subscribe()
@@ -72,14 +73,14 @@ export default function JoinMeeting() {
         }
       } catch (err) {
         console.error('Error fetching meeting:', err)
-        setError('Failed to fetch meeting')
+        setError('Failed to fetch meeting. Please try again.')
       } finally {
         setLoading(false)
       }
     }
 
     fetchMeeting()
-  }, [id, user])
+  }, [id])
 
   const handleLocationSelect = (location: google.maps.places.PlaceResult) => {
     console.log('Location selected:', location)
@@ -87,13 +88,12 @@ export default function JoinMeeting() {
   }
 
   const handleSubmitLocation = async () => {
-    if (!user || !id || !meeting || !selectedLocation) return
+    if (!id || !meeting || !selectedLocation) return
 
     try {
       // Optimistically update the UI first
       const updatedMeeting = {
         ...meeting,
-        participant_id: user.id,
         participant_location: {
           lat: selectedLocation.geometry?.location?.lat() ?? 0,
           lng: selectedLocation.geometry?.location?.lng() ?? 0,
@@ -102,12 +102,10 @@ export default function JoinMeeting() {
         status: 'active' as 'active'
       }
       setMeeting(updatedMeeting)
-      setIsSearchingVenues(true)
 
       const { error } = await supabase
         .from('WhereToMeetMeetings')
         .update({
-          participant_id: user.id,
           participant_location: {
             lat: selectedLocation.geometry?.location?.lat(),
             lng: selectedLocation.geometry?.location?.lng(),
